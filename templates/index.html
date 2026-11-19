@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Document Assistant</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto;
+           padding: 0 1rem; line-height: 1.5; color: #222; }
+    h1 { font-size: 1.6rem; margin-bottom: .2rem; }
+    p.sub { color: #666; margin-top: 0; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem;
+            margin: 1rem 0; background: #fafafa; }
+    input[type=text] { width: 100%; padding: .6rem; font-size: 1rem;
+                       border: 1px solid #bbb; border-radius: 6px; box-sizing: border-box; }
+    button { padding: .6rem 1.2rem; font-size: 1rem; border: none; border-radius: 6px;
+             background: #2563eb; color: #fff; cursor: pointer; margin-top: .6rem; }
+    button:hover { background: #1d4ed8; }
+    #answer { white-space: pre-wrap; background: #fff; border: 1px solid #ddd;
+              border-radius: 6px; padding: .8rem; margin-top: .6rem; }
+    .source { font-size: .9rem; color: #444; border-left: 3px solid #2563eb;
+              padding: .3rem .6rem; margin: .4rem 0; background: #f0f5ff; }
+    .muted { color: #666; font-size: .9rem; }
+    #status { font-size: .9rem; color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>AI Document Assistant</h1>
+  <p class="sub">Ask questions about the documents you upload. Answers are grounded in your files.</p>
+
+  <div class="card">
+    <strong>Upload a document</strong>
+    <p class="muted">{% if has_docs %}{{ doc_count }} document(s) indexed.{% else %}No documents yet — the sample document is indexed on startup.{% endif %}</p>
+    <form id="upform">
+      <input type="file" name="file" accept=".txt,.pdf" required>
+      <button type="submit">Upload</button>
+    </form>
+    <p id="status"></p>
+  </div>
+
+  <div class="card">
+    <strong>Ask a question</strong>
+    <form id="askform">
+      <input type="text" id="q" placeholder="e.g. What is chunking in RAG?" required>
+      <button type="submit">Ask</button>
+    </form>
+    <div id="answer" hidden></div>
+    <div id="sources"></div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    $("upform").addEventListener("submit", async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const r = await fetch("/api/upload", { method: "POST", body: fd });
+      const j = await r.json();
+      $("status").textContent = r.ok
+        ? `Uploaded ${j.document} — ${j.chunks_added} chunks added (${j.total_chunks} total).`
+        : `Upload failed: ${j.error}`;
+    });
+    $("askform").addEventListener("submit", async e => {
+      e.preventDefault();
+      const q = $("q").value;
+      const box = $("answer"), src = $("sources");
+      box.hidden = false; box.textContent = "Thinking…"; src.innerHTML = "";
+      const r = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q })
+      });
+      const j = await r.json();
+      box.textContent = r.ok ? j.answer : ("Error: " + j.error);
+      if (r.ok && j.sources) {
+        src.innerHTML = "<strong>Sources</strong>" + j.sources.map(s =>
+          `<div class="source"><em>${s.doc}</em><br>${s.text}</div>`).join("");
+      }
+    });
+  </script>
+</body>
+</html>
