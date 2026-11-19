@@ -1,0 +1,17 @@
+How Retrieval-Augmented Generation (RAG) Works
+
+Retrieval-Augmented Generation, usually shortened to RAG, is a way of building a chatbot that answers questions using your own documents instead of relying only on what a language model memorised during training. The idea is simple: when a user asks a question, the system first finds the most relevant passages from the documents, and then hands those passages to a language model so it can write an answer grounded in them.
+
+The first stage of RAG is ingestion. Documents are loaded into the system, and their text is extracted. A PDF might need a parser to pull the text out of its pages, while a plain text file can be read directly. Whatever the source, the goal of this stage is the same: turn every document into clean, searchable text.
+
+Next comes chunking. A whole document is too long to drop into a single search, so the text is split into smaller pieces called chunks. A common chunk size is around five hundred characters, and neighbouring chunks usually overlap a little so that a sentence which straddles a boundary is not lost. Each chunk remembers which document it came from, so answers can later cite their sources.
+
+The third stage is indexing. Every chunk is converted into a numerical vector, a list of numbers that captures which words it contains and how important they are. A classic way to do this is TF-IDF, short for term frequency-inverse document frequency. TF-IDF gives a high weight to words that appear often in one chunk but rarely across the whole collection, so distinctive words like "retrieval" matter more than common words like "the". All chunk vectors together form the search index.
+
+When a user asks a question, the retrieval stage begins. The question is turned into a vector in exactly the same way as the chunks, and the system measures how similar it is to every chunk, usually with cosine similarity. The three or so chunks with the highest similarity scores are pulled out as the retrieved context. This is the "retrieval" half of RAG, and it is what keeps the answers tied to the documents.
+
+Then comes generation. The retrieved chunks are placed into a prompt alongside the user's question, and a language model writes the final answer from that context. Because the model is told to use only the supplied passages, its answer is far less likely to invent facts. If the retrieved chunks do not contain the answer, a well-built system says so plainly instead of guessing.
+
+A RAG system has several practical advantages over a model used on its own. First, the knowledge can be updated simply by uploading new documents, with no retraining required. Second, every answer can point back to the exact chunk it came from, which makes it easy to check whether the answer is correct. Third, private documents stay private, because the retrieval index is built locally and only the retrieved passages are ever sent to a model.
+
+There are also limits worth knowing. Retrieval is only as good as the chunking and the ranking: if the question uses words that never appear in the documents, the right chunk can be missed. Very long documents need careful chunk sizes, and a system that returns irrelevant passages will produce a confident-sounding wrong answer. Good RAG design therefore means tuning chunk size and overlap, testing with real questions, and always showing the sources next to the answer.
